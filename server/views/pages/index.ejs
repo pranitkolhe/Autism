@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Autism Spectrum Prediction Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { background-color: #f4f7f6; }
+        .card { border: none; border-radius: 0.8rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .live-data-card { background-color: #e9ecef; }
+        .form-label { font-weight: 500; }
+        #predictionResult { font-size: 1.1rem; font-weight: normal; text-align: left; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+<div class="container my-5">
+    <div class="text-center mb-5">
+        <h1 class="display-5">Autism Spectrum Prediction Dashboard</h1>
+        <p class="lead">Answer the questionnaire to get a prediction from the model.</p>
+    </div>
+
+                        <a class="btn btn-primary w-100 mt-4 p-3" href="http://localhost:8501" >Get Prediction from image</a>
+
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-body p-4 p-md-5">
+                    <h4 class="card-title mb-4">Screening Questionnaire</h4>
+                    <form id="predictionForm">
+                        <div class="row g-4">
+                            
+                            <div class="col-md-6"><label for="A1" class="form-label">A1: Child looks at you when called?</label><select id="A1" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            <div class="col-md-6"><label for="A2" class="form-label">A2: Easy to get eye contact?</label><select id="A2" class="form-select"><option value="1">Easy</option><option value="0">Difficult</option></select></div>
+                            <div class="col-md-6"><label for="A5" class="form-label">A5: Child pretends (e.g., pretend play)?</label><select id="A5" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            <div class="col-md-6"><label for="A6" class="form-label">A6: Child follows your gaze?</label><select id="A6" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            <div class="col-md-6"><label for="A7" class="form-label">A7: Child tries to comfort you if upset?</label><select id="A7" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            <div class="col-md-6"><label for="A9" class="form-label">A9: Child brings objects to show you?</label><select id="A9" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            
+                            <hr class="my-3">
+
+                            <div class="col-md-6">
+                                <label for="Sex" class="form-label">Sex</label>
+                                <select id="Sex" class="form-select">
+                                    <option value="m">Male</option>
+                                    <option value="f">Female</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="Ethnicity" class="form-label">Ethnicity</label>
+                                <select id="Ethnicity" class="form-select">
+                                    <option value="White European">White European</option>
+                                    <option value="Middle Eastern">Middle Eastern</option>
+                                    <option value="Asian">Asian</option>
+                                    <option value="Black">Black</option>
+                                    <option value="Hispanic">Hispanic</option>
+                                    <option value="South Asian">South Asian</option>
+                                    <option value="Native Indian">Native Indian</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="Anxiety_disorder" class="form-label">Anxiety Disorder Present?</label>
+                                <select id="Anxiety_disorder" class="form-select">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="Social/Behavioural Issues" class="form-label">Repetitive Actions?</label>
+                                <select id="Social/Behavioural Issues" class="form-select">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mt-4 p-3">Get Prediction</button>
+                    </form>
+                    <div id="predictionResult" class="mt-4 p-3 rounded"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card live-data-card">
+                 <div class="card-body p-4">
+                    <h4 class="card-title text-center mb-3">Live Sensor Feed</h4>
+                    <div id="sensorStatus" class="text-center">Waiting for data...</div>
+                    <hr>
+                    <h5 class="text-center">Real-Time Behavioural Metrics</h5>
+                    <div class="text-center my-3"><h6>Repetitive Motion Status:</h6><p id="repetitiveStatus" class="fs-4 fw-bold text-primary">--</p></div>
+                    <div class="text-center"><h6>Overall Movement Energy:</h6><p id="movementEnergy" class="fs-4 fw-bold text-success">--</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    async function updateDashboard() {
+        try {
+            const res = await axios.get("/api/data");
+            const data = res.data;
+            if (data.length === 0) { return; }
+            document.getElementById('sensorStatus').textContent = '🟢 Receiving Data';
+            const latestData = data[data.length - 1];
+            const isRepetitive = latestData.repetitive;
+            document.getElementById('repetitiveStatus').textContent = isRepetitive ? 'YES' : 'NO';
+            const { ax, ay, az } = latestData;
+            const energy = Math.sqrt(ax*ax + ay*ay + az*az);
+            document.getElementById('movementEnergy').textContent = energy > 25000 ? 'HIGH' : 'LOW';
+        } catch (err) {
+            document.getElementById('sensorStatus').textContent = '🔴 Connection Error';
+        }
+    }
+    setInterval(updateDashboard, 2000);
+    updateDashboard();
+
+
+    document.getElementById('predictionForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const resultDiv = document.getElementById('predictionResult');
+        resultDiv.textContent = '⏳ Getting prediction...';
+        resultDiv.className = 'mt-4 p-3 rounded bg-info-subtle';
+
+
+        const qChatFields = ['A1', 'A2', 'A5', 'A6', 'A7', 'A9'];
+        let qChatScore = 0;
+        for (const fieldId of qChatFields) {
+            if (document.getElementById(fieldId).value === '0') {
+                qChatScore++;
+            }
+        }
+
+        const formData = {
+            'Qchat_10_Score': qChatScore,
+        
+            'A1': document.getElementById('A1').value,
+            'A2': document.getElementById('A2').value,
+            'A5': document.getElementById('A5').value,
+            'A6': document.getElementById('A6').value,
+            'A7': document.getElementById('A7').value,
+            'A9': document.getElementById('A9').value,
+            'Sex': document.getElementById('Sex').value,
+            'Ethnicity': document.getElementById('Ethnicity').value,
+            'Anxiety_disorder': document.getElementById('Anxiety_disorder').value,
+            'Social/Behavioural Issues': document.getElementById('Social/Behavioural Issues').value,
+        };
+
+        try {
+            const res = await axios.post('/predict', formData);
+            resultDiv.textContent = res.data.prediction;
+            resultDiv.className = 'mt-4 p-3 rounded bg-success-subtle text-success-emphasis';
+        } catch (err) {
+            resultDiv.textContent = 'Error: Could not get a prediction.';
+            resultDiv.className = 'mt-4 p-3 rounded bg-danger-subtle text-danger-emphasis';
+        }
+    });
+</script>
+</body>
+</html>
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Autism Spectrum Prediction Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { background-color: #f4f7f6; }
+        .card { border: none; border-radius: 0.8rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .live-data-card { background-color: #e9ecef; }
+        .form-label { font-weight: 500; }
+        #predictionResult { font-size: 1.2rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container my-5">
+    <div class="text-center mb-5">
+        <h1 class="display-5">Autism Spectrum Prediction Dashboard</h1>
+        <p class="lead">Answer the questionnaire while observing the live sensor feed for context.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-body p-4 p-md-5">
+                    <h4 class="card-title mb-4">Screening Questionnaire</h4>
+                    <form id="predictionForm">
+                        <div class="row g-4">
+                            <div class="col-md-6"><label for="A1" class="form-label">Q1: Child looks Qt you when called?</label><select id="A1" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            <div class="col-md-6"><label for="A2" class="form-label">Q2: Easy to get eye contact?</label><select id="A2" class="form-select"><option value="1">Easy</option><option value="0">Difficult</option></select></div>
+                            <div class="col-md-6"><label for="A3" class="form-label">Q3: Child points to ask for something?</label><select id="A3" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            <div class="col-md-6"><label for="A4" class="form-label">Q4: Child points to share interest?</label><select id="A4" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            <div class="col-md-6"><label for="A5" class="form-label">Q5: Child pretends (e.g., pretend play)?</label><select id="A5" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            <div class="col-md-6"><label for="A6" class="form-label">Q6: Child follows your gaze?</label><select id="A6" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            <div class="col-md-12"><label for="A7" class="form-label">Q7: Child tries to comfort you if upset?</label><select id="A7" class="form-select"><option value="1">Yes</option><option value="0">No</option></select></div>
+                            
+                            <hr class="my-3">
+                            
+                            <div class="col-md-6">
+                                <label for="Anxiety_disorder" class="form-label">Anxiety Disorder Present?</label>
+                                <select id="Anxiety_disorder" class="form-select">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="Social/Behavioural Issues" class="form-label">Social/Behavioural Issues?</label>
+                                <select id="Social/Behavioural Issues" class="form-select">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mt-4 p-3">Get Prediction</button>
+                    </form>
+                    <div id="predictionResult" class="mt-4 text-center p-3 rounded"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card live-data-card mb-4">
+                <div class="card-body p-4">
+                    <h4 class="card-title text-center mb-3">Live Sensor Feed</h4>
+                    <div id="sensorStatus" class="text-center">Waiting for data...</div>
+                    <hr>
+                    <h5 class="text-center">Real-Time Behavioural Metrics</h5>
+                    <div class="text-center my-3">
+                        <h6>Repetitive Motion Status:</h6>
+                        <p id="repetitiveStatus" class="fs-4 fw-bold text-primary">--</p>
+                    </div>
+                     <div class="text-center">
+                        <h6>Overall Movement Energy:</h6>
+                        <p id="movementEnergy" class="fs-4 fw-bold text-success">--</p>
+                        <small class="text-muted">(High if > 25000)</small>
+                    </div>
+                </div>
+            </div>
+            <div class="card live-data-card">
+                <div class="card-body p-4">
+                    <h4 class="card-title text-center mb-3">Live Sensor Feed</h4>
+                    <div id="sensorStatus" class="text-center">Waiting for data...</div>
+                    <hr>
+                    <h5 class="text-center">Real-Time Health Metrics</h5>
+                    <div class="text-center my-3">
+                        <h6>Anxity Status:</h6>
+                        <p id="repetitiveStatus" class="fs-4 fw-bold text-primary">--</p>
+                    </div>
+                     <div class="text-center">
+                        <h6>Heart Rate</h6>
+                        <p id="movementEnergy" class="fs-4 fw-bold text-success">--</p>
+                        <small class="text-muted">(High if > 25000)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- PART 1: LIVE SENSOR DASHBOARD LOGIC ---
+    const MOVEMENT_ENERGY_THRESHOLD = 25000;
+
+    async function updateDashboard() {
+        const sensorStatusDiv = document.getElementById('sensorStatus');
+        const repetitiveStatusP = document.getElementById('repetitiveStatus');
+        const movementEnergyP = document.getElementById('movementEnergy');
+        
+        try {
+            const res = await axios.get("/api/data");
+            const data = res.data;
+
+            if (data.length === 0) {
+                sensorStatusDiv.textContent = 'Waiting for data from the wearable device...';
+                return;
+            }
+            sensorStatusDiv.textContent = '🟢 Receiving Data';
+
+            const latestData = data[data.length - 1];
+            const isRepetitive = latestData.repetitive;
+            repetitiveStatusP.textContent = isRepetitive ? 'YES' : 'NO';
+            repetitiveStatusP.className = isRepetitive ? 'fs-4 fw-bold text-danger' : 'fs-4 fw-bold text-primary';
+
+            const { ax, ay, az } = latestData;
+            const energy = Math.sqrt(ax*ax + ay*ay + az*az);
+            const isHighEnergy = energy > MOVEMENT_ENERGY_THRESHOLD;
+            movementEnergyP.textContent = isHighEnergy ? 'HIGH' : 'LOW';
+            movementEnergyP.className = isHighEnergy ? 'fs-4 fw-bold text-danger' : 'fs-4 fw-bold text-success';
+            
+        } catch (err) {
+            sensorStatusDiv.textContent = '🔴 Connection Error to Server';
+            console.error("Error fetching data", err);
+        }
+    }
+
+    setInterval(updateDashboard, 2000);
+    updateDashboard();
+
+    // --- PART 2: FORM SUBMISSION LOGIC ---
+    document.getElementById('predictionForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const resultDiv = document.getElementById('predictionResult');
+        resultDiv.textContent = '⏳ Getting prediction from the model...';
+        resultDiv.className = 'mt-4 text-center p-3 rounded bg-info-subtle';
+
+        const formData = {
+            A1: document.getElementById('A1').value,
+            A2: document.getElementById('A2').value,
+            A3: document.getElementById('A3').value,
+            A4: document.getElementById('A4').value,
+            A5: document.getElementById('A5').value,
+            A6: document.getElementById('A6').value,
+            A7: document.getElementById('A7').value,
+            Anxiety_disorder: document.getElementById('Anxiety_disorder').value,
+            'Social/Behavioural Issues': document.getElementById('Social/Behavioural Issues').value,
+        };
+
+        try {
+            const res = await axios.post('/predict', formData);
+            resultDiv.textContent = res.data.prediction;
+            resultDiv.className = 'mt-4 text-center p-3 rounded bg-success-subtle text-success-emphasis';
+        } catch (err) {
+            resultDiv.textContent = 'Error: Could not get a prediction.';
+            resultDiv.className = 'mt-4 text-center p-3 rounded bg-danger-subtle text-danger-emphasis';
+            console.error(err);
+        }
+    });
+</script>
+</body>
+</html> -->
