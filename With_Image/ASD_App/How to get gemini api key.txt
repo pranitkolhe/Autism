@@ -1,0 +1,51 @@
+-Get a valid Gemini API key
+
+Go here:
+https://aistudio.google.com/app/apikey
+
+Then:
+Sign in with your Google account
+Click “Create API key”
+Choose “Create API key in new project”
+Copy the generated key — it’ll look something like:
+AIzaSyC9N7xk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+-Replace it in your code
+
+In your Streamlit file (around the top):
+
+GOOGLE_API_KEY = "YOUR_NEW_VALID_API_KEY_HERE"
+genai.configure(api_key=GOOGLE_API_KEY)
+
+Replace the placeholder string with the key you just copied.
+
+-Optional (recommended): store it safely
+
+Instead of keeping it directly in your code (less secure),
+create a .streamlit/secrets.toml file in your app folder:
+
+ASD_App/
+│
+├── ASD_App.py
+└── .streamlit/
+    └── secrets.toml
+
+
+Put this inside:
+
+GOOGLE_API_KEY = "YOUR_NEW_VALID_API_KEY_HERE"
+
+Then update your code to:
+
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+genai.configure(api_key=GOOGLE_API_KEY)
+
+-Restart Streamlit
+
+Close your terminal, then run again:
+streamlit run ASD_App.py
+
+After fix
+If your key is valid, you’ll see:
+No red “API Error”
+The chatbot will respond instantly with detailed, empathetic answers about Autism Spectrum Disorder

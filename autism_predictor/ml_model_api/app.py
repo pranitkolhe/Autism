@@ -2,72 +2,197 @@ from flask import Flask, request, jsonify
 import pandas as pd
 import joblib
 import traceback
+import os
+import google.generativeai as genai
 
 app = Flask(__name__)
 
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
 
+GEMINI_API_KEY = "AIzaSyASOP1QwcY1HDCsz4En6a0z6cJXRkDHMTQ" 
+genai.configure(api_key=GEMINI_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+
+MODEL_FILENAME = 'SVM_Final.pkl'
+
+# ==========================================
+# 2. DEFINE EXACT FEATURES (Order Matters!)
+# ==========================================
+# This includes 'Qchat_10_Score' which was present in your 97% model.
+REQUIRED_FEATURES = [
+    'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 
+    'A10_Autism_Spectrum_Quotient', 
+    'Age_Years', 
+    'Qchat_10_Score', 
+    'Depression', 
+    'Anxiety_disorder', 
+    'Sex', 
+    'Ethnicity', 
+    'Jaundice', 
+    'Family_mem_with_ASD', 
+    'Who_completed_the_test'
+]
+
+# ==========================================
+# 3. LOAD MODEL
+# ==========================================
+model = None
 try:
-    with open('model.pkl', 'rb') as model_file:
-        model = joblib.load(model_file)
-    print("✅ New model loaded successfully!")
+    if os.path.exists(MODEL_FILENAME):
+        with open(MODEL_FILENAME, 'rb') as model_file:
+            model = joblib.load(model_file)
+        print(f"✅ Model '{MODEL_FILENAME}' loaded successfully!")
+    else:
+        print(f"❌ Error: {MODEL_FILENAME} not found.")
 except Exception as e:
     print(f"❌ Error loading model: {e}")
-    model = None
 
+# ==========================================
+# 4. REPORT GENERATION
+# ==========================================
+def generate_gemini_report(prediction_label, input_data):
+    try:
+        prompt = f"""
+        You are an empathetic clinical assistant for an Autism screening tool.
+        INPUT DATA: {input_data}
+        PREDICTION: {prediction_label}
+        TASK: Write a 50-word professional, empathetic report for parents. 
+        If Positive: Suggest professional evaluation.
+        If Negative: Suggest standard monitoring.
+        Disclaimer: This is AI, not a doctor.
+        """
+        response = gemini_model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        print(f"Gemini Error: {e}")
+        return f"Prediction: {prediction_label}. (Report unavailable)"
+
+# ==========================================
+# 5. PREDICTION ROUTE
+# ==========================================
 @app.route('/predict_ml', methods=['POST'])
 def predict():
     if model is None:
-        return jsonify({'error': 'Model is not loaded'}), 500
+        return jsonify({'error': 'Model not loaded'}), 500
 
     try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
 
-        data_from_form = request.get_json()
+        # --- DATA ALIGNMENT ---
+        aligned_data = {}
+        for feature in REQUIRED_FEATURES:
+            # Convert to float immediately to ensure numeric types
+            try:
+                aligned_data[feature] = float(data.get(feature, 0))
+            except ValueError:
+                aligned_data[feature] = 0.0
 
-
-        REQUIRED_FEATURES = [
-            'Qchat_10_Score',
-            'Ethnicity',
-            'Sex',
-            'A6',
-            'A9',
-            'A5',
-            'A7',
-            'A1',
-            'A2'
-        ]
-
-
-        input_df = pd.DataFrame([data_from_form])
-        
-
+        # Create DataFrame
+        input_df = pd.DataFrame([aligned_data])
+        # Enforce column order to match training
         input_df = input_df[REQUIRED_FEATURES]
         
+        # DEBUG: Print data being sent to model
+        print(f"🔍 Input Features:\n{input_df.iloc[0].to_dict()}")
 
+        # Predict
         prediction = model.predict(input_df)
+        raw_pred = prediction[0]
+        
+        # Interpret Result (Handle 1/0 or Yes/No)
+        is_positive = str(raw_pred).lower() in ['yes', '1', '1.0', 'true', 'positive']
+        pred_label = 'Yes (High Probability)' if is_positive else 'No (Low Probability)'
 
-        report_text = ""
-        if prediction[0] == 'Yes' or prediction[0] == 1:
-             report_text = """
-Analysis: Indicators Consistent with ASD Traits
+        print(f"🤖 Prediction: {pred_label}")
 
-Conclusion: The model's prediction is POSITIVE for ASD Traits.
-(Full report text here)
-"""
-        else:
-             report_text = """
-Analysis: Indicators Not Consistent with ASD Traits
+        report = generate_gemini_report(pred_label, data)
 
-Conclusion: The model's prediction is NEGATIVE for ASD Traits.
-(Full report text here)
-"""
-        return jsonify({'prediction': report_text.strip()})
+        return jsonify({'prediction': report.strip(), 'raw_output': str(raw_pred)})
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({'error': f"An error occurred: {e}"}), 400
+        return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+
+
+
+# from flask import Flask, request, jsonify
+# import pandas as pd
+# import joblib
+# import traceback
+
+# app = Flask(__name__)
+
+
+# try:
+#     with open('model.pkl', 'rb') as model_file:
+#         model = joblib.load(model_file)
+#     print("✅ New model loaded successfully!")
+# except Exception as e:
+#     print(f"❌ Error loading model: {e}")
+#     model = None
+
+# @app.route('/predict_ml', methods=['POST'])
+# def predict():
+#     if model is None:
+#         return jsonify({'error': 'Model is not loaded'}), 500
+
+#     try:
+
+#         data_from_form = request.get_json()
+
+
+#         REQUIRED_FEATURES = [
+#             'Qchat_10_Score',
+#             'Ethnicity',
+#             'Sex',
+#             'A6',
+#             'A9',           
+#             'A5',
+#             'A7',
+#             'A1',
+#             'A2'
+#         ]
+
+
+#         input_df = pd.DataFrame([data_from_form])
+        
+
+#         input_df = input_df[REQUIRED_FEATURES]
+        
+
+#         prediction = model.predict(input_df)
+
+#         report_text = ""
+#         if prediction[0] == 'Yes' or prediction[0] == 1:
+#              report_text = """
+# Analysis: Indicators Consistent with ASD Traits
+
+# Conclusion: The model's prediction is POSITIVE for ASD Traits.
+# (Full report text here)
+# """
+#         else:
+#              report_text = """
+# Analysis: Indicators Not Consistent with ASD Traits
+
+# Conclusion: The model's prediction is NEGATIVE for ASD Traits.
+# (Full report text here)
+# """
+#         return jsonify({'prediction': report_text.strip()})
+
+#     except Exception as e:
+#         traceback.print_exc()
+#         return jsonify({'error': f"An error occurred: {e}"}), 400
+
+# if __name__ == '__main__':
+#     app.run(debug=True, port=5000)
 
 
 

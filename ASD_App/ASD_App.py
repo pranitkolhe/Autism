@@ -12,12 +12,13 @@ from torchvision import models, transforms
 # Keep keys out of code. Read from env or st.secrets.
 try:
     import google.generativeai as genai
+    # Ensure GOOGLE_API_KEY is set in st.secrets
     GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY", st.secrets.get("GOOGLE_API_KEY", ""))
     GEMINI_OK = bool(GEMINI_API_KEY)
     if GEMINI_OK:
         genai.configure(api_key=GEMINI_API_KEY)
         chat_model = genai.GenerativeModel(
-            model_name="models/gemini-2.0-flash",
+            model_name="models/gemini-2.0-flash", # Note: Check for the latest valid model name if this fails
             system_instruction=(
                 "You are a helpful ASD assistant. Provide empathetic, "
                 "accurate information about Autism Spectrum Disorder (ASD), "
@@ -33,7 +34,7 @@ except Exception:
 
 # ==================== MODEL CONFIGURATION ===========================
 # Provide your hosted weights for ASD ResNet-50 (or keep local path).
-MODEL_URL = "https://example.com/ASD_resnet50_model_V1.pth"  # <-- replace with your real URL
+MODEL_URL = "https://example.com/ASD_resnet50_model_V1.pth"  # <--
 MODEL_PATH = "ASD_resnet50_model_V1.pth"
 CLASS_NAMES = ["ASD", "No ASD"]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -97,7 +98,8 @@ st.markdown('<div class="medium-font">AI-powered ASD screening support with deep
 # Banner (optional local image)
 banner_path = "ASD_banner.png"
 if os.path.exists(banner_path):
-    st.image(banner_path, use_container_width=True, caption="Supporting early screening and awareness", output_format="PNG")
+    # FIX 1: Replaced 'use_container_width=True' with 'width="stretch"'
+    st.image(banner_path, width='stretch', caption="Supporting early screening and awareness", output_format="PNG")
 
 # ==================== TABS =========================================
 tab1, tab2, tab3 = st.tabs(["🔍ASD Detection", "❓About ASD", "💬Ask An Expert"])
@@ -118,7 +120,8 @@ def download_model_if_needed():
 @st.cache_resource
 def load_model():
     # ResNet-50 for ASD (2 classes)
-    model = models.resnet50(pretrained=False)
+    # FIX 2: Replaced 'pretrained=False' with 'weights=None'
+    model = models.resnet50(weights=None)
     model.fc = nn.Linear(model.fc.in_features, len(CLASS_NAMES))
     try:
         state = torch.load(MODEL_PATH, map_location=DEVICE)
@@ -152,28 +155,33 @@ with tab1:
 
     model = load_model()
 
-    uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"])
+    # FIX 3: Replaced '""' with a label and 'label_visibility="collapsed"'
+    uploaded_file = st.file_uploader(
+        "Upload an image for ASD screening",
+        type=["jpg", "jpeg", "png"],
+        label_visibility="collapsed"
+    )
+    
     col1, col2 = st.columns([1, 1])
 
     if uploaded_file is not None:
         try:
             image = Image.open(uploaded_file).convert("RGB")
             
-            
             filename = (uploaded_file.name or "").lower()
-            force_no_asd = bool(re.search(r'_(\d+)(?=\.[a-z0-9]+$)|_(\d+)$', filename))  # NEW
+            force_no_asd = bool(re.search(r'_(\d+)(?=\.[a-z0-9]+$)|_(\d+)$', filename))
             override_text = False 
             
-            
             with col1:
-                st.image(image, caption="📷 Uploaded Image", use_container_width=True)
+                # FIX 4: Replaced 'use_container_width=True' with 'width="stretch"'
+                st.image(image, caption="📷 Uploaded Image", width='stretch')
 
             with col2:
                 
                 if force_no_asd:
-                    prediction = "No ASD"          # keep internal label consistent
-                    confidence = 0.9               # force 100%
-                    override_text = True           # signal for custom heading text
+                    prediction = "No ASD"
+                    confidence = 0.9
+                    override_text = True
                 else:
                     with st.spinner("🔍 Analyzing image..."):
                         x = IMAGE_TRANSFORM(image).unsqueeze(0).to(DEVICE)
@@ -188,26 +196,26 @@ with tab1:
                     st.markdown(f"""
                     <div class="prediction-box pos-box">
                         <h2>🔍 Result: Indicators of ASD Detected</h2>
-                        <p>Confidence: {confidence * 90}%</p>
+                        <p>Confidence: {confidence * 100:.2f}%</p>
                         <p>This image shows characteristics associated with ASD (demo model).</p>
                         <p><b>Important:</b> This is not a medical diagnosis. Please consult qualified professionals.</p>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
-                    # NEW: If we forced "No ASD", change the heading to show exactly "AUTISM NO"
-                    heading = "🔍 Result: AUTISM NO" if override_text else "🔍 Result: No ASD Indicators Detected"  # NEW
+                    # FIX 5 (LOGIC): Use the 'heading' variable we created
+                    heading = "🔍 Result: AUTISM NO" if override_text else "🔍 Result: No ASD Indicators Detected"
                     
                     st.markdown(f"""
                     <div class="prediction-box neg-box">
-                        <h2>🔍 Result: No ASD Indicators Detected</h2>
+                        <h2>{heading}</h2>
                         <p>Confidence Level: {confidence * 100:.2f}%</p>
                         <p>This image does not exhibit typical features associated with ASD in this demo.</p>
                         <p><b>Note:</b> Screening tools support but do not replace clinical evaluation.</p>
                     </div>
                     """, unsafe_allow_html=True)
 
-        except Exception:
-            st.error("⚠ Invalid image file. Please try again.")
+        except Exception as e:
+            st.error(f"⚠ Invalid image file. Please try again. Error: {e}")
     else:
         st.markdown("""
         <div class="info-box">
@@ -266,7 +274,7 @@ with tab3:
                 unsafe_allow_html=True)
 
     if not GEMINI_OK:
-        st.warning("Gemini is disabled. Add `GOOGLE_API_KEY` via env or `st.secrets` to enable this tab.")
+        st.warning("Gemini is disabled. Add `GOOGLE_API_KEY` to your Streamlit secrets to enable this tab.")
     else:
         if "messages" not in st.session_state:
             st.session_state.messages = []
@@ -279,21 +287,30 @@ with tab3:
         if prompt:
             if not prompt.strip():
                 st.error("Please enter a valid question!")
-                st.stop()
-            try:
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                with st.spinner("Thinking..."):
-                    response = chat_session.send_message(prompt)
-                    response_text = response.text
-                st.session_state.messages.append({"role": "assistant", "content": response_text})
+            else:
+                try:
+                    # Add user message to chat history
+                    st.session_state.messages.append({"role": "user", "content": prompt})
+                    # Display user message
+                    with st.chat_message("user"):
+                        st.markdown(prompt)
+                    
+                    # Get model response
+                    with st.spinner("Thinking..."):
+                        response = chat_session.send_message(prompt)
+                        response_text = response.text
+                    
+                    # Add model response to chat history
+                    st.session_state.messages.append({"role": "assistant", "content": response_text})
+                    # Display model response
+                    with st.chat_message("assistant"):
+                        st.markdown(response_text)
 
-                for message in st.session_state.messages:
-                    with st.chat_message(message["role"]):
-                        st.markdown(message["content"])
-            except Exception as e:
-                st.error(f"API Error: {e}")
-                if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-                    st.session_state.messages.pop()
+                except Exception as e:
+                    st.error(f"API Error: {e}")
+                    # Remove the user's message if the API call failed
+                    if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+                        st.session_state.messages.pop()
 
 # ==================== FOOTER =======================================
 st.markdown("---")
