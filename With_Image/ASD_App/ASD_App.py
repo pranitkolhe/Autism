@@ -126,7 +126,7 @@ with tab1:
         image = Image.open(uploaded_file).convert("RGB")
         filename = uploaded_file.name.lower()
 
-        st.image(image, caption=f"📷Uploaded: {filename}", use_container_width=True)
+        st.image(image, caption=f"📷Uploaded: {filename}", width=500)
 
         if "_" in filename:
             st.markdown("""

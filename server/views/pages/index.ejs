@@ -2,131 +2,395 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Autism Spectrum Prediction Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroSense AI Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { border: none; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
-        .card:hover { transform: translateY(-2px); }
-        .live-data-card { background-color: #ffffff; border-left: 5px solid #0d6efd; }
-        .form-label { font-weight: 600; color: #495057; font-size: 0.9rem; }
-        .form-select, .form-control { border-radius: 0.5rem; padding: 0.75rem; border: 1px solid #ced4da; }
-        .form-select:focus, .form-control:focus { border-color: #86b7fe; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); }
-        .section-title { font-size: 1.1rem; color: #0d6efd; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-bottom: 20px; font-weight: bold; }
-        #predictionResult { font-size: 1.1rem; white-space: pre-wrap; line-height: 1.6; }
-        .btn-primary { background-color: #0d6efd; border: none; border-radius: 0.5rem; font-weight: 600; letter-spacing: 0.5px; }
+        :root {
+            --primary: #e59846;       /* Indigo 600 */
+            --primary-light: #818cf8; /* Indigo 400 */
+            --primary-dark: #3730a3;  /* Indigo 800 */
+            --accent: #06b6d4;        /* Cyan 500 */
+            --bg-body: #f1f5f9;       /* Slate 100 */
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --text-main: #0f172a;     /* Slate 900 */
+            --text-muted: #64748b;    /* Slate 500 */
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.08);
+            --shadow-hover: 0 20px 40px -5px rgba(0,0,0,0.12);
+        }
+
+        body { 
+            background-color: var(--bg-body); 
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            color: var(--text-main);
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+
+        /* --- Hero Header --- */
+        .hero-section {
+            position: relative;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 4rem 0 4rem;
+            color: white;
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+            margin-bottom: -4rem;
+            box-shadow: 0 20px 40px -10px rgba(79, 70, 229, 0.4);
+            z-index: 1;
+        }
+        
+        .hero-decor {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.4;
+        }
+
+        /* --- Cards --- */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            overflow: hidden;
+            height: 100%; /* Ensure full height in grid */
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .card-header-custom {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+            background: rgba(248, 250, 252, 0.5);
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+        }
+
+        /* --- Question Components --- */
+        .q-wrapper {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            height: 100%;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .q-wrapper:hover {
+            border-color: var(--primary-light);
+            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);
+        }
+
+        .q-badge {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            color: var(--primary-dark);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .form-label {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-main);
+            flex-grow: 1; /* Pushes select to bottom */
+        }
+
+        .form-select, .form-control {
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            border: 1px solid #cbd5e1;
+            font-size: 0.95rem;
+            background-color: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .form-select:focus, .form-control:focus {
+            border-color: var(--primary);
+            background-color: #fff;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        }
+
+        /* --- Submit Button --- */
+        .btn-predict {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
+            transition: all 0.3s;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-predict:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px -5px rgba(79, 70, 229, 0.5);
+            color: white;
+        }
+
+        /* --- Right Column Sticky --- */
+        @media (min-width: 992px) {
+            .sticky-sidebar {
+                position: sticky;
+                top: 2rem;
+                z-index: 10;
+            }
+        }
+
+        /* --- Sensor Data Widget --- */
+        .live-card {
+            border-top: 5px solid var(--accent);
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            margin-bottom: 0.75rem;
+            border: 1px solid #f1f5f9;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .metric-val { font-weight: 800; font-size: 1.1rem; }
+
+        /* --- Result Animation --- */
+        .result-box {
+            display: none;
+            background: #fff;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-hover);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .result-box.active { display: block; }
+        
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(30px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
     </style>
 </head>
 <body>
-<div class="container my-5">
-    <div class="text-center mb-5">
-        <h1 class="display-5 fw-bold text-dark">Autism Screening Dashboard</h1>
-        <p class="lead text-muted">AI-powered assessment using behavioural and demographic data.</p>
-    </div>
 
+<!-- HERO HEADER -->
+<div class="hero-section text-center">
+    <div class="hero-decor"></div>
+    <div class="container position-relative z-2">
+        <h1 class="display-4 fw-extrabold mb-2 text-white">NeuroSense AI</h1>
+        <p class="lead text-white-50 fw-medium">Clinical-Grade Early Detection System</p>
+    </div>
+</div>
+
+<div class="container pb-5" style="margin-top: 2rem;">
     <div class="row g-4">
-        <!-- FORM COLUMN -->
-        <div class="col-lg-8">
-            <div class="card h-100">
-                <div class="card-body p-4 p-md-5">
-                    <form id="predictionForm">
-                        
-                        <!-- SECTION 1: BEHAVIOURAL QUESTIONS -->
-                        <div class="section-title">📊 Behavioural Questions (A1-A10)</div>
-                        <p class="text-muted small mb-3">Defaults set to <strong>High Risk</strong> profile (Score 10/10) to test Positive prediction.</p>
-                        
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="A1" class="form-label">A1: Does child look at you when called?</label>
-                                <select id="A1" class="form-select">
-                                    <option value="0">Yes (Typical)</option>
-                                    <option value="1" selected>No (Atypical)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="A2" class="form-label">A2: Easy to get eye contact?</label>
-                                <select id="A2" class="form-select">
-                                    <option value="0">Easy (Typical)</option>
-                                    <option value="1" selected>Difficult (Atypical)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="A3" class="form-label">A3: Points to indicate interest?</label>
-                                <select id="A3" class="form-select">
-                                    <option value="0">Yes (Typical)</option>
-                                    <option value="1" selected>No (Atypical)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="A4" class="form-label">A4: Points to share interest?</label>
-                                <select id="A4" class="form-select">
-                                    <option value="0">Yes (Typical)</option>
-                                    <option value="1" selected>No (Atypical)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="A5" class="form-label">A5: Pretend play?</label>
-                                <select id="A5" class="form-select">
-                                    <option value="0">Yes (Typical)</option>
-                                    <option value="1" selected>No (Atypical)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="A6" class="form-label">A6: Follows your gaze?</label>
-                                <select id="A6" class="form-select">
-                                    <option value="0">Yes (Typical)</option>
-                                    <option value="1" selected>No (Atypical)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="A7" class="form-label">A7: Comforts you if upset?</label>
-                                <select id="A7" class="form-select">
-                                    <option value="0">Yes (Typical)</option>
-                                    <option value="1" selected>No (Atypical)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="A8" class="form-label">A8: First words / Speaking?</label>
-                                <select id="A8" class="form-select">
-                                    <option value="0">Typical</option>
-                                    <option value="1" selected>Delayed/Atypical</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="A9" class="form-label">A9: Brings objects to show?</label>
-                                <select id="A9" class="form-select">
-                                    <option value="0">Yes (Typical)</option>
-                                    <option value="1" selected>No (Atypical)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="A10" class="form-label">A10: Stares at nothing?</label>
-                                <select id="A10" class="form-select">
-                                    <option value="0">No (Typical)</option>
-                                    <option value="1" selected>Yes (Atypical)</option>
-                                </select>
+        
+        <!-- LEFT COLUMN: ASSESSMENT FORM -->
+        <div class="col-lg-8 position-relative z-2">
+            <form id="predictionForm">
+                
+                <!-- Questions Section -->
+                <div class="glass-card mb-4">
+                    <div class="card-header-custom">
+                        <i class="fa-solid fa-clipboard-check me-2 text-primary"></i> Behavioral Assessment (Q1-Q10)
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="alert alert-primary border-0 bg-primary-subtle text-primary-emphasis mb-4 rounded-3 d-flex align-items-center">
+                            <i class="fa-solid fa-circle-info fa-lg me-3"></i>
+                            <div>
+                                <strong>Instructions:</strong> Please select the option that best describes the individual's typical behavior. 
+                                "Agree" or "Disagree" options are mapped to risk factors automatically.
                             </div>
                         </div>
 
-                        <!-- SECTION 2: DEMOGRAPHICS & MEDICAL -->
-                        <div class="section-title mt-4">👤 Demographics & Medical History</div>
+                        <div class="row g-3">
+                            <!-- Q1 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper">
+                                    <div class="q-badge">Q1</div>
+                                    <label for="q1" class="form-label">Do you often notice small sounds when others do not?</label>
+                                    <select id="q1" class="form-select">
+                                        <option value="0">Disagree (Typical)</option>
+                                        <option value="1">Agree (Often notice)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Q2 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper">
+                                    <div class="q-badge">Q2</div>
+                                    <label for="q2" class="form-label">Do you usually concentrate more on the whole picture rather than small details?</label>
+                                    <select id="q2" class="form-select">
+                                        <option value="0">Agree (Whole Picture)</option>
+                                        <option value="1">Disagree (Focus on Details)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Q3 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper">
+                                    <div class="q-badge">Q3</div>
+                                    <label for="q3" class="form-label">Do you find it easy to do more than one thing at once?</label>
+                                    <select id="q3" class="form-select">
+                                        <option value="0">Agree (Easy)</option>
+                                        <option value="1">Disagree (Difficult)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Q4 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper">
+                                    <div class="q-badge">Q4</div>
+                                    <label for="q4" class="form-label">If interrupted, can you switch back to your task very quickly?</label>
+                                    <select id="q4" class="form-select">
+                                        <option value="0">Agree (Easy Switch)</option>
+                                        <option value="1">Disagree (Difficult Switch)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Q5 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper">
+                                    <div class="q-badge">Q5</div>
+                                    <label for="q5" class="form-label">Do you find it easy to "read between the lines" when someone talks to you?</label>
+                                    <select id="q5" class="form-select">
+                                        <option value="0">Agree (Easy)</option>
+                                        <option value="1">Disagree (Difficult)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Q6 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper">
+                                    <div class="q-badge">Q6</div>
+                                    <label for="q6" class="form-label">Can you tell if someone listening to you is getting bored?</label>
+                                    <select id="q6" class="form-select">
+                                        <option value="0">Agree (I can tell)</option>
+                                        <option value="1">Disagree (Hard to tell)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Q7 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper">
+                                    <div class="q-badge">Q7</div>
+                                    <label for="q7" class="form-label">When reading a story, is it difficult to figure out the characters' intentions?</label>
+                                    <select id="q7" class="form-select">
+                                        <option value="0">Disagree (Easy)</option>
+                                        <option value="1">Agree (Difficult)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Q8 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper">
+                                    <div class="q-badge">Q8</div>
+                                    <label for="q8" class="form-label">Do you like collecting information about categories of things (e.g., cars, birds, plants)?</label>
+                                    <select id="q8" class="form-select">
+                                        <option value="0">Disagree (Not really)</option>
+                                        <option value="1">Agree (I enjoy this)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Q9 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper">
+                                    <div class="q-badge">Q9</div>
+                                    <label for="q9" class="form-label">Is it easy for you to read someone's thoughts or feelings just by looking at their face?</label>
+                                    <select id="q9" class="form-select">
+                                        <option value="0">Agree (Easy)</option>
+                                        <option value="1">Disagree (Difficult)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Q10 -->
+                            <div class="col-md-6">
+                                <div class="q-wrapper border-warning">
+                                    <div class="q-badge bg-warning text-dark">Q10</div>
+                                    <label for="q10" class="form-label">Do you find it difficult to work out people’s intentions?</label>
+                                    <select id="q10" class="form-select">
+                                        <option value="0">Disagree (Easy)</option>
+                                        <option value="1">Agree (Difficult)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clinical Profile -->
+                <div class="glass-card mb-4">
+                    <div class="card-header-custom">
+                        <i class="fa-solid fa-file-medical me-2 text-primary"></i> Clinical Profile
+                    </div>
+                    <div class="card-body p-4">
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label for="Age_Years" class="form-label">Age (Years)</label>
-                                <input type="number" id="Age_Years" class="form-control" value="2" min="1" max="18">
+                                <input type="number" id="Age_Years" class="form-control" value="18" min="1" max="99">
                             </div>
                             <div class="col-md-4">
                                 <label for="Sex" class="form-label">Sex</label>
                                 <select id="Sex" class="form-select">
-                                    <option value="1" selected>Male</option> 
+                                    <option value="1">Male</option> 
                                     <option value="0">Female</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
                                 <label for="Ethnicity" class="form-label">Ethnicity</label>
                                 <select id="Ethnicity" class="form-select">
-                                    <option value="0" selected>Asian</option>
+                                    <option value="0">Asian</option>
                                     <option value="1">Black</option>
                                     <option value="2">Hispanic</option>
                                     <option value="3">Middle Eastern</option>
@@ -137,93 +401,98 @@
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label for="Jaundice" class="form-label">Born with Jaundice?</label>
+                                <label for="Jaundice" class="form-label">History of Jaundice?</label>
                                 <select id="Jaundice" class="form-select">
                                     <option value="0">No</option>
-                                    <option value="1" selected>Yes</option>
+                                    <option value="1">Yes</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label for="Family_mem_with_ASD" class="form-label">Family Member with ASD?</label>
+                                <label for="Family_mem_with_ASD" class="form-label">Family History of ASD?</label>
                                 <select id="Family_mem_with_ASD" class="form-select">
                                     <option value="0">No</option>
-                                    <option value="1" selected>Yes</option>
+                                    <option value="1">Yes</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <!-- SECTION 3: OTHER CONDITIONS -->
-                        <div class="section-title mt-4">🏥 Additional Screening</div>
-                        <div class="row g-3">
                              <div class="col-md-4">
-                                <label for="Depression" class="form-label">Depression Diagnosed?</label>
+                                <label for="Depression" class="form-label">Signs of Depression?</label>
                                 <select id="Depression" class="form-select">
                                     <option value="0">No</option>
-                                    <option value="1" selected>Yes</option>
+                                    <option value="1">Yes</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label for="Anxiety_disorder" class="form-label">Anxiety Disorder?</label>
+                                <label for="Anxiety_disorder" class="form-label">Signs of Anxiety?</label>
                                 <select id="Anxiety_disorder" class="form-select">
                                     <option value="0">No</option>
-                                    <option value="1" selected>Yes</option>
+                                    <option value="1">Yes</option>
                                 </select>
                             </div>
                              <div class="col-md-4">
-                                <label for="Who_completed_the_test" class="form-label">Who completed test?</label>
+                                <label for="Who_completed_the_test" class="form-label">Respondent</label>
                                 <select id="Who_completed_the_test" class="form-select">
-                                    <option value="0" selected>Family Member</option>
+                                    <option value="3">Self</option>
+                                    <option value="0">Family Member</option>
                                     <option value="1">Health Care Professional</option>
                                     <option value="2">Others</option>
-                                    <option value="3">Self</option>
                                 </select>
                             </div>
                         </div>
-
-                        <button type="submit" class="btn btn-primary w-100 mt-5 p-3 shadow-sm">
-                            🔍 Generate Prediction Report
-                        </button>
-                    
-                        <div id="predictionResult" class="mt-4 p-3 rounded d-none"></div>
-                    </form>
+                    </div>
                 </div>
-            </div>
+
+                <button type="submit" class="btn-predict w-100 mb-5">
+                    ANALYZE ASSESSMENT <i class="fa-solid fa-arrow-right ms-2"></i>
+                </button>
+            
+                <!-- Result Section -->
+                <div id="predictionResult" class="result-box mb-5">
+                    <div class="card-body p-4" id="resultContent"></div>
+                </div>
+
+            </form>
         </div>
 
-        <!-- RIGHT COLUMN: LIVE DATA & IMAGE LINK -->
-        <div class="col-lg-4">
-             <a class="btn btn-outline-primary w-100 mb-4 p-3 fw-bold" href="http://localhost:8501" target="_blank">
-                📷 Switch to Image Analysis (Streamlit)
-            </a>
+        <!-- RIGHT: Live Sensor Data (Sticky) -->
+        <div class="col-lg-4 position-relative z-2">
+            <div class="sticky-sidebar">
+                 <a class="btn btn-dark w-100 mb-4 p-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" href="http://localhost:8501" target="_blank" style="border-radius: 12px;">
+                    <i class="fa-solid fa-camera fa-lg"></i> 
+                    <span>Switch to Image Analysis</span>
+                </a>
 
-            <div class="card live-data-card">
-                 <div class="card-body p-4">
-                    <h5 class="card-title text-center mb-3">📡 Live IoT Sensor Data</h5>
-                    <div id="sensorStatus" class="text-center badge bg-secondary w-100 mb-3 p-2">
-                        Connecting...
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
-                        <span>Repetitive Motion:</span>
-                        <span id="repetitiveStatus" class="fw-bold text-primary">--</span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span>Heart Rate:</span>
-                        <span id="movementEnergy" class="fw-bold text-success">--</span>
-                    </div>
+                <div class="glass-card live-card mb-4">
+                     <div class="card-header-custom">
+                        <i class="fa-solid fa-wifi me-2 text-accent"></i> IoT Sensor Feed
+                     </div>
+                     <div class="card-body p-4">
+                        
+                        <div id="sensorStatus" class="text-center badge bg-secondary w-100 mb-4 p-3 rounded-pill fw-bold shadow-sm">
+                            Connecting...
+                        </div>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label"><i class="fa-solid fa-rotate me-2 text-primary"></i>Stereotypy</span>
+                            <span id="repetitiveStatus" class="metric-val text-muted">--</span>
+                        </div>
+                        
+                        <div class="metric-row">
+                            <span class="metric-label"><i class="fa-solid fa-heart-pulse me-2 text-danger"></i>Activity</span>
+                            <span id="movementEnergy" class="metric-val text-muted">--</span>
+                        </div>
 
-                    <button id="fetchToday" class="btn btn-outline-primary w-100 mb-2">
-                        📅 Show Today's Monitoring Summary
-                    </button>
-                    <div id="todaySummary" class="mt-2 small text-center text-muted">
-                        No summary loaded yet.
+                        <div class="mt-4 pt-3 border-top text-center">
+                            <button id="fetchToday" class="btn btn-sm btn-outline-primary w-100 rounded-pill fw-bold">
+                                View Daily Summary
+                            </button>
+                            <div id="todaySummary" class="mt-3 small text-muted"></div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
 
 <script>
     // --- Live Sensor Update Logic ---
@@ -234,40 +503,37 @@
             const statusEl = document.getElementById('sensorStatus');
             
             if (!data || data.length === 0) { 
-                statusEl.textContent = 'Waiting for Device...';
-                statusEl.className = 'text-center badge bg-warning w-100 mb-3 p-2 text-dark';
-                document.getElementById("repetitiveStatus").textContent = "--";
-                document.getElementById("movementEnergy").textContent = "--";
+                statusEl.textContent = 'Device Offline';
+                statusEl.className = 'text-center badge bg-warning text-dark w-100 mb-4 p-3 rounded-pill fw-bold shadow-sm';
                 return; 
             }
             
-            statusEl.textContent = '🟢 Device Connected';
-            statusEl.className = 'text-center badge bg-success w-100 mb-3 p-2';
+            statusEl.textContent = '● Online & Monitoring';
+            statusEl.className = 'text-center badge bg-success w-100 mb-4 p-3 rounded-pill fw-bold shadow-sm';
             
             const latestData = data[data.length - 1];
 
-            // Repetitive Motion from backend
+            // Repetitive Motion
             const isRepetitive = latestData.repetitive;
-            document.getElementById('repetitiveStatus').textContent =
-                isRepetitive ? 'YES' : 'NO';
+            document.getElementById('repetitiveStatus').textContent = isRepetitive ? 'DETECTED' : 'NORMAL';
+            document.getElementById('repetitiveStatus').className = isRepetitive ? 'metric-val text-danger' : 'metric-val text-success';
             
-            // Heart Rate view: High / Normal / 0
+            // Movement Energy
             const bpm = latestData.bpm;
-
+            const hrEl = document.getElementById("movementEnergy");
+            
             if (bpm === 0 || bpm === undefined) {
-                document.getElementById("movementEnergy").textContent = "0";
-            } 
-            else {
-                document.getElementById("movementEnergy").textContent =
-                    bpm > 80 ? "High" : "Normal";
+                hrEl.textContent = "IDLE";
+                hrEl.className = "metric-val text-muted";
+            } else {
+                hrEl.textContent = bpm > 80 ? "HIGH" : "NORMAL";
+                hrEl.className = bpm > 80 ? "metric-val text-warning" : "metric-val text-success";
             }
 
         } catch (err) {
             const statusEl = document.getElementById('sensorStatus');
-            statusEl.textContent = '🔴 Offline';
-            statusEl.className = 'text-center badge bg-danger w-100 mb-3 p-2';
-            document.getElementById("repetitiveStatus").textContent = "--";
-            document.getElementById("movementEnergy").textContent = "--";
+            statusEl.textContent = 'Connection Lost';
+            statusEl.className = 'text-center badge bg-danger w-100 mb-4 p-3 rounded-pill fw-bold shadow-sm';
         }
     }
     setInterval(updateDashboard, 2000);
@@ -276,42 +542,48 @@
     // --- Today's Summary Logic ---
     document.getElementById("fetchToday").addEventListener("click", async () => {
         const box = document.getElementById("todaySummary");
-        box.innerHTML = "⏳ Loading today's report...";
+        box.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"></div>';
 
         try {
             const res = await axios.get("/api/today-summary");
             const { avg_bpm, dominant_bpm_status, dominant_repetitive } = res.data;
 
             box.innerHTML = `
-                <div class="p-2 mt-2 bg-light rounded border">
-                    ❤️ Avg Heart Rate: <b>${avg_bpm ? avg_bpm.toFixed(1) : "--"} BPM</b><br>
-                    💓 Dominant HR Status: <b>${dominant_bpm_status}</b><br>
-                    🔁 Repetitive Motion: <b>${dominant_repetitive}</b>
+                <div class="bg-white p-3 rounded text-start border mt-2 shadow-sm">
+                     <div class="d-flex justify-content-between mb-1"><span>Avg Activity:</span> <b>${avg_bpm ? avg_bpm.toFixed(1) : "--"}</b></div>
+                     <div class="d-flex justify-content-between mb-1"><span>Status:</span> <b>${dominant_bpm_status}</b></div>
+                     <div class="d-flex justify-content-between"><span>Motion:</span> <b>${dominant_repetitive}</b></div>
                 </div>
             `;
         } catch (error) {
-            console.error(error);
-            box.innerHTML = "❌ Error loading summary";
+            box.innerHTML = "<span class='text-danger'>Unable to load data.</span>";
         }
     });
 
-    // --- Form Submission Logic (same as before) ---
+    // --- Form Submission Logic ---
     document.getElementById('predictionForm').addEventListener('submit', async function(event) {
         event.preventDefault();
-        const resultDiv = document.getElementById('predictionResult');
-        resultDiv.classList.remove('d-none', 'bg-success-subtle', 'bg-danger-subtle', 'text-success-emphasis', 'text-danger-emphasis');
-        resultDiv.classList.add('bg-info-subtle', 'text-info-emphasis');
-        resultDiv.textContent = '⏳ Processing data with AI Model...';
+        const resultBox = document.getElementById('predictionResult');
+        const resultContent = document.getElementById('resultContent');
+        
+        // Show loading state
+        resultBox.classList.add('active');
+        resultContent.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+                <h5 class="mt-3 text-muted">Processing Assessment...</h5>
+                <small class="text-muted">Connecting to Neural Engine</small>
+            </div>`;
 
-        const questions = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10'];
+        // 1. Gather Data (Map q1-q10 to A1-A10)
         let qChatTotal = 0;
         let questionValues = {};
 
-        questions.forEach(q => {
-            const val = parseInt(document.getElementById(q).value);
-            questionValues[q] = val;
+        for (let i = 1; i <= 10; i++) {
+            const val = parseInt(document.getElementById('q' + i).value);
+            questionValues['A' + i] = val; // Backend expects A1, A2...
             qChatTotal += val;
-        });
+        }
 
         const formData = {
             ...questionValues,
@@ -327,26 +599,51 @@
             'Who_completed_the_test': parseInt(document.getElementById('Who_completed_the_test').value)
         };
 
-        console.log("Sending Data:", formData);
-
         try {
             const res = await axios.post('/predict', formData);
-            resultDiv.classList.remove('bg-info-subtle', 'text-info-emphasis');
-            resultDiv.classList.add('bg-success-subtle', 'text-success-emphasis');
-            resultDiv.textContent = res.data.prediction;
+            
+            const isPositive = res.data.raw_output && (res.data.raw_output.toString().toLowerCase().includes('1') || res.data.raw_output.toString().toLowerCase() === 'yes');
+            
+            if (isPositive) {
+                 resultContent.innerHTML = `
+                    <div class="d-flex align-items-center mb-4 text-danger border-bottom pb-3">
+                        <div class="bg-danger-subtle p-3 rounded-circle me-3"><i class="fa-solid fa-triangle-exclamation fa-2x"></i></div>
+                        <div>
+                            <h4 class="mb-0 fw-bold">Positive Screening</h4>
+                            <span class="text-muted small">Indicators consistent with ASD traits detected</span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-3 border-start border-4 border-danger shadow-sm">
+                        ${res.data.prediction.replace(/\n/g, '<br>')}
+                    </div>`;
+            } else {
+                 resultContent.innerHTML = `
+                    <div class="d-flex align-items-center mb-4 text-success border-bottom pb-3">
+                        <div class="bg-success-subtle p-3 rounded-circle me-3"><i class="fa-solid fa-check-circle fa-2x"></i></div>
+                        <div>
+                            <h4 class="mb-0 fw-bold">Negative Screening</h4>
+                            <span class="text-muted small">No significant ASD traits detected</span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-3 border-start border-4 border-success shadow-sm">
+                        ${res.data.prediction.replace(/\n/g, '<br>')}
+                    </div>`;
+            }
+            
         } catch (err) {
-            console.error(err);
-            resultDiv.classList.remove('bg-info-subtle', 'text-info-emphasis');
-            resultDiv.classList.add('bg-danger-subtle', 'text-danger-emphasis');
-            resultDiv.textContent = 'Error: ' + (err.response?.data?.error || err.message);
+            resultContent.innerHTML = `
+                <div class="alert alert-danger d-flex align-items-center mb-0">
+                    <i class="fa-solid fa-server fa-2x me-3"></i>
+                    <div>
+                        <h5 class="alert-heading fw-bold mb-1">Prediction Error</h5>
+                        <p class="mb-0">${err.response?.data?.error || err.message}</p>
+                    </div>
+                </div>`;
         }
     });
 </script>
 </body>
 </html>
-
-
-
 
 <!-- <!DOCTYPE html>
 <html lang="en">

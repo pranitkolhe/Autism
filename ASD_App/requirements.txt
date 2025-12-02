@@ -1,6 +1,0 @@
-streamlit
-torch
-torchvision
-requests
-Pillow
-google-generativeai
