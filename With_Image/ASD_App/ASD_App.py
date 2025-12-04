@@ -10,7 +10,7 @@ import torch.nn as nn
 from torchvision import models, transforms
 
 #GEMINI CONFIGURATION 
-GOOGLE_API_KEY = "AIzaSyASOP1QwcY1HDCsz4En6a0z6cJXRkDHMTQ"
+GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 chat_model = genai.GenerativeModel(
     model_name="models/gemini-2.0-flash",

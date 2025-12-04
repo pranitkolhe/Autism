@@ -11,7 +11,7 @@ app = Flask(__name__)
 # 1. CONFIGURATION
 # ==========================================
 
-GEMINI_API_KEY = "AIzaSyASOP1QwcY1HDCsz4En6a0z6cJXRkDHMTQ" 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-2.0-flash')
 
@@ -72,6 +72,7 @@ def generate_gemini_report(prediction_label, input_data):
 # ==========================================
 # 5. PREDICTION ROUTE
 # ==========================================
+
 @app.route('/predict_ml', methods=['POST'])
 def predict():
     if model is None:
