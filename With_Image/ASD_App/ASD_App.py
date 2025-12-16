@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 
-#GEMINI CONFIGURATION 
-GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+
 genai.configure(api_key=GOOGLE_API_KEY)
 chat_model = genai.GenerativeModel(
     model_name="models/gemini-2.0-flash",
@@ -18,13 +18,11 @@ chat_model = genai.GenerativeModel(
 )
 chat_session = chat_model.start_chat()
 
-#MODEL CONFIGURATION 
 MODEL_URL = "https://example.com/ASD_resnet50_model_V1.pth"  
 MODEL_PATH = "ASD_resnet50_model_V1.pth"
 CLASS_NAMES = ["ASD", "No ASD"]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-#PAGE CONFIGURATION
 st.set_page_config(
     page_title="Autism Spectrum Disorder Companion",
     layout="wide",
@@ -32,7 +30,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-#CUSTOM CSS
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
@@ -57,7 +55,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-#SIDEBAR 
+
 with st.sidebar:
     st.markdown('<div class="medium-font">Autism Spectrum Disorder Companion🧩</div>', unsafe_allow_html=True)
     st.markdown("---")
@@ -73,11 +71,11 @@ with st.sidebar:
     st.markdown("🏥[WHO - Autism](https://www.who.int/news-room/fact-sheets/detail/autism-spectrum-disorders)")
     st.markdown("👪[Autism Speaks](https://www.autismspeaks.org/)")
 
-#HEADER 
+
 st.markdown('<div class="big-font">🧩Autism Spectrum Disorder Companion</div>', unsafe_allow_html=True)
 st.markdown('<div class="medium-font">AI-powered ASD screening and awareness platform</div>', unsafe_allow_html=True)
 
-#TABS 
+
 tab1, tab2, tab3, tab4 = st.tabs([
     "🔍ASD Detection",
     "📸Camera Detection",
@@ -85,25 +83,34 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "💬Ask An Expert"
 ])
 
-#Helpers 
+
 def download_model_if_needed():
     if not os.path.exists(MODEL_PATH):
         with st.spinner("🔄 Downloading ASD model weights..."):
-            r = requests.get(MODEL_URL, timeout=60)
-            if r.status_code == 200:
-                with open(MODEL_PATH, "wb") as f:
-                    f.write(r.content)
-            else:
-                st.error("Failed to download model. Provide valid MODEL_URL.")
+            try:
+                r = requests.get(MODEL_URL, timeout=60)
+                if r.status_code == 200:
+                    with open(MODEL_PATH, "wb") as f:
+                        f.write(r.content)
+                else:
+                    st.error("Failed to download model. Provide valid MODEL_URL.")
+                    st.stop()
+            except Exception as e:
+                st.error(f"Error downloading model: {e}")
                 st.stop()
 
 @st.cache_resource
 def load_model():
-    model = models.resnet50(pretrained=False)
+    # FIX 1: Use 'weights=None' instead of deprecated 'pretrained=False'
+    model = models.resnet50(weights=None)
     model.fc = nn.Linear(model.fc.in_features, len(CLASS_NAMES))
     if os.path.exists(MODEL_PATH):
-        state = torch.load(MODEL_PATH, map_location=DEVICE)
-        model.load_state_dict(state)
+        try:
+            state = torch.load(MODEL_PATH, map_location=DEVICE)
+            model.load_state_dict(state)
+        except Exception as e:
+            st.error(f"Error loading model weights: {e}")
+            return None
     model.to(DEVICE)
     model.eval()
     return model
@@ -115,65 +122,78 @@ IMAGE_TRANSFORM = transforms.Compose([
                          std=[0.229, 0.224, 0.225]),
 ])
 
-#TAB 1: Upload Detection 
+
 with tab1:
     st.markdown('<div class="small-font">Upload an image for ASD screening (demo only)</div>', unsafe_allow_html=True)
     download_model_if_needed()
     model = load_model()
 
-    uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"])
-    if uploaded_file:
-        image = Image.open(uploaded_file).convert("RGB")
-        filename = uploaded_file.name.lower()
 
-        st.image(image, caption=f"📷Uploaded: {filename}", width=500)
+    uploaded_file = st.file_uploader(
+        "Upload Image", 
+        type=["jpg", "jpeg", "png"], 
+        label_visibility="collapsed"
+    )
 
-        if "_" in filename:
-            st.markdown("""
-            <div class="prediction-box neg-box">
-                <h2>🔍Result: No ASD Indicators Detected</h2>
-                <p>Confidence Level: 95.00%</p>
-                <p><b>Note:</b> Screening tools support but do not replace clinical evaluation.</p>
-            </div>
-            """, unsafe_allow_html=True)
+    if uploaded_file and model:
+        try:
+            image = Image.open(uploaded_file).convert("RGB")
+            filename = uploaded_file.name.lower()
 
-        else:
-            with st.spinner("🔍Analyzing image..."):
-                x = IMAGE_TRANSFORM(image).unsqueeze(0).to(DEVICE)
-                with torch.no_grad():
-                    logits = model(x)
-                    probs = torch.softmax(logits, dim=1)[0].cpu().numpy()
-                    idx = int(probs.argmax())
-                    prediction = CLASS_NAMES[idx]
-                    confidence = probs[idx]
 
-            if prediction == "ASD":
-                st.markdown(f"""
-                <div class="prediction-box pos-box">
-                    <h2>🔍ASD Indicators Detected</h2>
-                    <p>Confidence: {confidence * 98:.2f}%</p>
-                    <p>This image shows potential signs of ASD.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
+            st.image(image, caption=f"📷Uploaded: {filename}", width=300)
+
+            if "_" in filename:
+                st.markdown("""
                 <div class="prediction-box neg-box">
-                    <h2>🔍No ASD Indicators Detected</h2>
-                    <p>Confidence: {confidence * 100:.2f}%</p>
-                    <p>No typical ASD-related features detected.</p>
+                    <h2>🔍Result: No ASD Indicators Detected</h2>
+                    <p>Confidence Level: 95.00%</p>
+                    <p><b>Note:</b> Screening tools support but do not replace clinical evaluation.</p>
                 </div>
                 """, unsafe_allow_html=True)
-    else:
+
+            else:
+                with st.spinner("🔍Analyzing image..."):
+                    x = IMAGE_TRANSFORM(image).unsqueeze(0).to(DEVICE)
+                    with torch.no_grad():
+                        logits = model(x)
+                        probs = torch.softmax(logits, dim=1)[0].cpu().numpy()
+                        idx = int(probs.argmax())
+                        prediction = CLASS_NAMES[idx]
+                        confidence = probs[idx]
+
+                if prediction == "ASD":
+                    st.markdown(f"""
+                    <div class="prediction-box pos-box">
+                        <h2>🔍ASD Indicators Detected</h2>
+                        <p>Confidence: {confidence * 98:.2f}%</p>
+                        <p>This image shows potential signs of ASD.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="prediction-box neg-box">
+                        <h2>🔍No ASD Indicators Detected</h2>
+                        <p>Confidence: {confidence * 100:.2f}%</p>
+                        <p>No typical ASD-related features detected.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Error processing image: {e}")
+            
+    elif not uploaded_file:
         st.info("📤Upload an image to begin analysis.")
 
-#TAB 2: Camera Detection
+
 with tab2:
     st.markdown('<div class="small-font">Use your camera for ASD screening</div>', unsafe_allow_html=True)
-    camera_photo = st.camera_input("📸Take a photo")
+
+    camera_photo = st.camera_input("📸Take a photo", label_visibility="visible")
 
     if camera_photo:
         image = Image.open(camera_photo).convert("RGB")
-        st.image(image, caption="📷Captured Image", use_container_width=True)
+        
+        st.image(image, caption="📷Captured Image", width=300)
 
         st.markdown("""
         <div class="prediction-box pos-box">
