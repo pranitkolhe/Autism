@@ -81,3 +81,40 @@ The solution complements medical diagnosis by providing **early alerts and behav
 
 ## 🏗️ System Architecture
 
+## SetUp 
+
+npm install
+Create .env
+    add api keys
+
+start the sql server
+node index.js
+Create Database & Table
+    CREATE DATABASE autism_monitoring;
+USE autism_monitoring;
+
+CREATE TABLE sensor_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    bpm INT,
+    bpm_status ENUM('Normal','High','0') NOT NULL,
+    repetitive ENUM('YES','NO') NOT NULL,
+    ax INT,
+    ay INT,
+    az INT,
+    gx INT,
+    gy INT,
+    gz INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+Create Virtual Environment
+    python3 -m venv venv
+    source venv/bin/activate
+
+pip install numpy pandas scikit-learn matplotlib joblib
+
+
+
+
+
